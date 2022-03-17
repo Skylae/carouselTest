@@ -1,0 +1,277 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>轮播图</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+        a {
+            color: #666;
+            text-decoration: none;
+        }
+        li {
+            list-style-type: none;
+        }
+        .carousel img {
+            width: 720px;
+            height: 455px;
+        }
+        .carousel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 720px;
+            height: 455px;
+            border: 1px solid #000;
+            overflow: hidden;
+        }
+        /* 箭头部分 */
+        .arrow-l, .arrow-r {
+            display: none;
+            position: absolute;
+            color: #fff;
+            font-size: 18px;
+            width: 24px;
+            height: 40px;
+            line-height: 40px;
+            top: 50%;
+            z-index: 2;
+            transform: translateY(-50%);
+            text-align: center;
+            background-color: rgba(0,0,0,0.3);
+        }
+        .arrow-r {
+            right: 0;
+        }
+
+        /* 轮播图图片部分 */
+        .carousel ul {
+            position: absolute;
+            left: -100%;
+        }
+        .carousel ul li {
+            float: left;
+        }
+        .carousel ul li img {
+            border: 0;
+            vertical-align: middle;
+        }
+        
+        /* 小圆点部分 */
+        .circle {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            position: absolute;
+            z-index: 2;
+            bottom: 10px;
+            left: 50%;
+            transform: translate(-50%);
+        }
+        .circle li {
+            height: 8px;
+            width: 8px;
+            float: left;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.2);
+            margin: 0 3px;
+            cursor: pointer;
+        }
+        .currentC {     /*用以给小圆圈当前被选中时使用的CSS样式*/
+            background-color: white !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="carousel">
+        <!--左侧箭头-->
+        <a href="javascript:void(0);" class="arrow-l">&#60;</a>
+        <!--右侧箭头-->
+        <a href="javascript:void(0);" class="arrow-r">&#62;</a>
+        <!--轮播部分-->
+        <ul>
+            <li>
+                <a href="#"><img src="images/ACG/986923.png" alt="图片丢失"/></a>
+            </li>
+            <li>
+                <a href="#"><img src="images/ACG/988428.jpg" alt="图片丢失"/></a>
+            </li>
+            <li>
+                <a href="#"><img src="images/ACG/988488.jpg" alt="图片丢失"/></a>
+            </li>
+            <li>
+                <a href="#"><img src="images/ACG/988498.png" alt="图片丢失"/></a>
+            </li>
+        </ul>
+        <!--小圆点部分，由图片个数决定来动态生成-->
+        <ol class="circle">
+        </ol>
+    </div>
+    <script>
+        let carousel = document.querySelector('div.carousel');
+        let arrowL = carousel.querySelector('.arrow-l');
+        let arrowR = carousel.querySelector('.arrow-r');
+        let circle = carousel.querySelector('.circle');
+        let ul = carousel.querySelector('ul');
+
+        // 有多少个图片，自动生成多少个小圆圈
+        for(let i = 0; i < ul.children.length; i++){
+            circle.appendChild(document.createElement('li'));
+        }
+        circle.children[0].className = 'currentC';
+
+        // 为实现无缝切换而克隆拼接
+        ul.insertBefore(ul.children[ul.children.length - 1].cloneNode(true), ul.children[0]);
+        ul.appendChild(ul.children[1].cloneNode(true));
+
+        //  将ul的长度改为li个数*100%;
+        ul.style.width = ul.children.length * 100 + '%';
+
+        // 箭头在鼠标悬浮carousel时显示，离开时消失
+        carousel.addEventListener('mouseenter', function() {
+            arrowL.style.display = 'block';
+            arrowR.style.display = 'block';
+            clearInterval(autoCarousel);
+        });
+        carousel.addEventListener('mouseleave', function() {
+            arrowL.style.display = 'none';
+            arrowR.style.display = 'none';
+            autoCarousel = setInterval(function() {
+                arrowR.click();
+            }, 2000);
+        });
+
+        // 圆圈在鼠标悬浮circle时背景变深，离开时变浅
+        circle.addEventListener('mouseenter', function() {
+            circle.style.backgroundColor = 'rgba(255, 255, 255, 0.4)';
+        });
+        circle.addEventListener('mouseleave', function() {
+            circle.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+        });
+        
+        let move = null;    // 初始化定时器标识符
+        let show = {    //初始化当前展示的图片
+            index: 1,
+            left: -1 * carousel.clientWidth
+        };
+        let valve = true;   //设置一个节流阀，用以防止多点造成bug
+        // 点击圆点实现图片切换
+        for(let i = 0; i < circle.children.length; i++){
+            circle.children[i].addEventListener('click', function(){
+                if(valve){
+                    valve = false;  //关闭节流阀
+                    for(let j = 0; j < circle.children.length; j++){
+                        circle.children[j].className = '';
+                    }
+                    this.className = 'currentC';
+                    let active = ul.offsetLeft;
+                    let index = i + 1;  //第i圆圈对应第index个图
+                    let target = -index * 720;
+
+                    //用来初始化定时器和移动的功能块
+                    clearInterval(move);    
+                    move = setInterval(function() {
+                        let step = (active >= target) ? -30 : 30;
+                        ul.style.left = ul.offsetLeft + step + 'px'; 
+                        if(active >= target && ul.offsetLeft <= target){
+                            ul.style.left = target + 'px';
+                            clearInterval(move);
+                            show.index = index;
+                            show.left = target;
+                            valve = true;   //节流阀开启
+                        }
+                        else if (active <= target && ul.offsetLeft >= target){
+                            ul.style.left = target + 'px';
+                            clearInterval(move);
+                            show.index = index;
+                            show.left = target;
+                            valve = true;
+                        }
+                    }, 20);
+                }
+            });
+        }
+        // 轮播图自动播放
+        autoCarousel = setInterval(function() {
+            arrowR.click();
+        }, 2000);
+
+        // 点击左/右箭头实现图片滚动，并圆点对应显示
+        arrowR.addEventListener('click', function() {
+            if(valve){
+                valve = false;
+                // 当展示到右部无缝图时，初始化show
+                if(show.index >= ul.children.length - 1){
+                    show.index = 1;
+                    show.left = -show.index * carousel.clientWidth;
+                    ul.style.left = show.left + 'px';
+                }
+                let target = show.left - carousel.clientWidth;
+                clearInterval(move);
+                //用于整数化图片序号index并显示对应的第i个圆圈
+                let tIndex = Number.parseInt(-target / 720);
+                let i = tIndex - 1;  //从目的图片的序号tIndex得到对应的圆圈序号i
+                if(i >= circle.children.length ){
+                    i = 0;
+                }
+                for(let j = 0; j < circle.children.length; j++){
+                    circle.children[j].className = '';
+                }
+                circle.children[i].className = 'currentC';
+
+                move = setInterval(function() {
+                    let step = 30;
+                    ul.style.left = ul.offsetLeft - step + 'px';
+                    if(ul.offsetLeft <= target) {
+                        ul.style.left = target + 'px';
+                        clearInterval(move);
+                        show.index = tIndex
+                        show.left = target;
+                        valve = true;
+                    } 
+                }, 20);
+            }
+        });
+        arrowL.addEventListener('click', function() {
+            if(valve){
+                valve = false;
+                if(show.index <= 0){
+                    show.index = ul.children.length - 2;
+                    show.left = -show.index * carousel.clientWidth;
+                    ul.style.left = show.left + 'px';
+                }
+                let target = show.left + carousel.clientWidth;
+                clearInterval(move);
+                //用于整数化图片序号index并显示对应的第i个圆圈
+                let tIndex = Number.parseInt(-target / 720);
+                let i = tIndex - 1;  //从目的图片的序号tIndex得到对应的圆圈序号i
+                if(i <= -1){
+                    i = circle.children.length - 1;
+                }
+                for(let j = 0; j < circle.children.length; j++){
+                    circle.children[j].className = '';
+                }
+                circle.children[i].className = 'currentC';
+
+                move = setInterval(function() {
+                    let step = 30;
+                    ul.style.left = ul.offsetLeft + step + 'px';
+                    if(ul.offsetLeft >= target) {
+                        ul.style.left = target + 'px';
+                        clearInterval(move);
+                        show.index = tIndex
+                        show.left = target;
+                        valve = true;
+                    } 
+                }, 20);
+            }
+        });
+    </script>
+</body>
+</html>
